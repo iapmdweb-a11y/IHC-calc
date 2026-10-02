@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IHC Positive Percentage Calculator</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f3f5f4;--panel:#fff;--ink:#17262b;--mute:#5b6b70;--line:#d3dbdc;--accent:#1f6f78;--pos:#a3501a;--neg:#2c5ad0;--exc:#333}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1a1d;--panel:#16252a;--ink:#e6eeee;--mute:#93a5a8;--line:#2a3d42;--accent:#5bb8c2;--pos:#e08a47;--neg:#6f95f0;--exc:#9aa7aa}}
+:root[data-theme="dark"]{--bg:#0f1a1d;--panel:#16252a;--ink:#e6eeee;--mute:#93a5a8;--line:#2a3d42;--accent:#5bb8c2;--pos:#e08a47;--neg:#6f95f0;--exc:#9aa7aa}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Serif 4",Georgia,"Times New Roman",serif}
+main{max-width:800px;margin:0 auto;padding:24px 16px 40px}
+h1{font-size:1.7rem;line-height:1.2;margin:0 0 6px}
+.sub{color:var(--mute);margin:0 0 18px;font-size:.95rem}
+.panel,details{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin-bottom:16px}
+summary{font-weight:700;cursor:pointer}
+.hint{color:var(--mute);font-size:.9rem;margin:0 0 10px}
+.row{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;margin:12px 0}
+.row small{display:block;color:var(--mute);font-size:.8rem}
+input[type=number],input[type=text]{width:100%;font:inherit;padding:8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)}
+input:focus-visible,button:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+button{font:inherit;padding:8px 14px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.seg,.tools,.actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.tools button{border-left-width:8px}
+.tools button[data-t="1"]{border-left-color:var(--pos)}
+.tools button[data-t="2"]{border-left-color:var(--neg)}
+.tools button[data-t="3"]{border-left-color:var(--exc)}
+button[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--accent);font-weight:700}
+.actions button{color:var(--accent);border-color:var(--accent)}
+#add{background:var(--accent);color:var(--bg);font-weight:700}
+#cv{width:100%;height:auto;display:none;touch-action:none;cursor:crosshair;border:1px solid var(--line);margin:8px 0}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.big{font-size:2.1rem;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.bar{height:12px;border-radius:6px;background:var(--neg);overflow:hidden;margin:8px 0}
+.bar i{display:block;height:100%;width:0;background:var(--pos)}
+dl{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;margin:8px 0 0}
+dt{color:var(--mute)}dd{margin:0;font-variant-numeric:tabular-nums}
+.msg{color:var(--mute);font-size:.9rem;min-height:1.3em;margin:8px 0 0}
+.note{color:var(--mute);font-size:.8rem}
+.tw{overflow-x:auto;margin-top:10px}
+.tw table{border-collapse:collapse;width:100%;font-size:.85rem}
+.tw th,.tw td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.tw th{color:var(--mute);font-weight:600}
+.ref table{min-width:720px}
+.g td{background:var(--bg);font-weight:700;color:var(--accent)}
+textarea{width:100%;height:110px;margin-top:10px;font:.8rem monospace;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:4px;display:none}
+</style>
+</head>
+<body>
+<main>
+<h1>IHC positive percentage calculator</h1>
+<p class="sub">Estimate percent positive from an image by counting squares, nuclei, or both, and log fields for comparison.</p>
+
+<section class="panel">
+<p class="hint">Upload a JPG or PNG. Choose a counting method, pick a tool, then mark the image. The image stays in your browser. Squares estimate area; nuclei count individual cells. You can use both on the same field and compare.</p>
+<input type="file" id="img" accept="image/*" aria-label="Upload image">
+<div class="seg" role="group" aria-label="Counting method">
+<button type="button" id="m1" aria-pressed="true">Count squares</button>
+<button type="button" id="m2" aria-pressed="false">Count nuclei</button>
+</div>
+<div class="tools" role="group" aria-label="Marking tool">
+<button type="button" data-t="1" aria-pressed="true">Positive IHC</button>
+<button type="button" data-t="2" aria-pressed="false">Negative IHC</button>
+<button type="button" data-t="3" aria-pressed="false">Exclude</button>
+<button type="button" data-t="0" aria-pressed="false">Erase</button>
+</div>
+<div class="row"><label for="cols">Grid columns<small>changing it clears square marks</small></label><input id="cols" type="number" min="4" max="80" value="30"></div>
+<label><input type="checkbox" id="showgrid" checked> Show grid</label>
+<canvas id="cv" width="600" height="400" aria-label="Image with grid overlay and nuclear markers"></canvas>
+<div class="row"><label for="lab">Field label<small>for the results log, for example case 3 hotspot</small></label><input id="lab" type="text"></div>
+<div class="actions">
+<button type="button" id="add">Add field to log</button>
+<button type="button" id="undo">Undo last nucleus</button>
+<button type="button" id="clrm">Clear marks</button>
+</div>
+<p class="msg" id="gmsg" role="status"></p>
+</section>
+
+<section class="panel" aria-live="polite">
+<div class="two">
+<div><div class="hint">Squares: percent positive</div><div class="big" id="sp">–</div><div class="bar" aria-hidden="true"><i id="sf"></i></div><dl id="sd"></dl></div>
+<div><div class="hint">Nuclei: percent positive</div><div class="big" id="np">–</div><div class="bar" aria-hidden="true"><i id="nf"></i></div><dl id="nd"></dl></div>
+</div>
+<p class="msg" id="diff"></p>
+</section>
+
+<section class="panel">
+<strong>Results log</strong>
+<div class="tw"><table><thead><tr><th>Field</th><th>Pos sq</th><th>Neg sq</th><th>% sq</th><th>Pos nuc</th><th>Neg nuc</th><th>% nuc</th></tr></thead><tbody id="lb"><tr><td colspan="7" style="color:var(--mute)">No fields added yet.</td></tr></tbody></table></div>
+<div class="actions"><button type="button" id="copy">Copy as TSV</button><button type="button" id="clrl">Reset log</button></div>
+<textarea id="ta" readonly aria-label="Tab-separated results"></textarea>
+</section>
+
+<details class="ref" open>
+<summary>Reference thresholds by tumour</summary>
+<div class="tw"><table>
+<tr><th>Marker</th><th>What is scored</th><th>Threshold / categories</th><th>Notes</th></tr>
+<tr class="g"><td colspan="4">Breast</td></tr>
+<tr><td>ER</td><td>% invasive tumour nuclei, nuclear staining</td><td>Negative &lt;1%; low positive 1–10%; positive &gt;10% (1–100% is interpreted as ER positive)</td><td>ASCO/CAP 2020. Report % and average intensity; low-positive cases need the recommended comment. Test DCIS for ER too.</td></tr>
+<tr><td>PR</td><td>% invasive tumour nuclei</td><td>Negative &lt;1%; positive ≥1%</td><td>Mainly prognostic. St Gallen subtyping has used 20%.</td></tr>
+<tr><td>HER2</td><td>Membrane pattern, intensity, % of cells</td><td>0: none, or incomplete faint ≤10%. 1+: incomplete faint &gt;10%. 2+ equivocal: weak/moderate complete &gt;10%, or intense complete ≤10% (reflex ISH). 3+: intense complete circumferential &gt;10%</td><td>ASCO/CAP 2018, affirmed 2023. HER2-low (1+, or 2+ ISH-negative) is not a formal category, but 0 vs 1+ matters for trastuzumab deruxtecan.</td></tr>
+<tr><td>Ki-67</td><td>% invasive tumour nuclei, standardized visual scoring</td><td>No universal cut-off. IKWG: ≤5% low, ≥30% high for prognosis in stage I–II ER+/HER2−; 6–29% indeterminate. ≥20% used by St Gallen 2013 and monarchE</td><td>Poor reproducibility. ASCO and NCCN did not recommend routine use in the sources I found. Check the current abemaciclib label.</td></tr>
+<tr><td>PD-L1 22C3 (TNBC)</td><td>CPS: PD-L1+ tumour cells, lymphocytes, macrophages ÷ viable tumour cells × 100</td><td>CPS ≥10 positive</td><td>Metastatic TNBC, pembrolizumab with chemotherapy. KEYNOTE-522 neoadjuvant use was regardless of PD-L1.</td></tr>
+<tr><td>PD-L1 SP142 (TNBC)</td><td>IC: % tumour area occupied by PD-L1+ immune cells</td><td>IC ≥1% positive</td><td>Not interchangeable with CPS. Check current approvals.</td></tr>
+<tr class="g"><td colspan="4">Lung</td></tr>
+<tr><td>PD-L1 22C3 (NSCLC)</td><td>TPS: % viable tumour cells with partial or complete membrane staining</td><td>&lt;1% negative; 1–49% expressed; ≥50% high</td><td>Pembrolizumab: TPS ≥1% eligibility, ≥50% for the high-expression setting. Other assays (28-8, SP263, SP142) use different cut-offs.</td></tr>
+<tr><td>ALK (D5F3)</td><td>Cytoplasmic staining in tumour cells</td><td>Positive: any strong granular cytoplasmic staining; no minimum %</td><td>Binary read. Confirm per local algorithm (FISH or NGS).</td></tr>
+<tr class="g"><td colspan="4">Stomach, GEJ and oesophagus</td></tr>
+<tr><td>HER2 (gastric/GEJ)</td><td>Membranous staining (basolateral or lateral pattern allowed)</td><td>3+ resection: strong staining in ≥10% of cells. 3+ biopsy: cluster of ≥5 cells regardless of %. 2+ equivocal: reflex ISH</td><td>Differs from the breast criteria. Hofmann-type scoring.</td></tr>
+<tr><td>Claudin 18.2 (43-14A)</td><td>% viable tumour cells, membranous, by intensity</td><td>Positive: ≥75% of tumour cells with moderate-to-strong (2+/3+) membranous staining</td><td>Selects HER2-negative gastric/GEJ adenocarcinoma for zolbetuximab. Needs ≥50 viable tumour cells.</td></tr>
+<tr><td>PD-L1 22C3 CPS</td><td>CPS as above</td><td>Gastric/GEJ: CPS ≥1, ≥5 or ≥10 depending on drug, line and region. Oesophageal squamous: CPS ≥10</td><td>Labels and regional approvals change. Check the current label for the drug in question.</td></tr>
+<tr class="g"><td colspan="4">Head and neck, cervix</td></tr>
+<tr><td>PD-L1 22C3 CPS</td><td>CPS as above</td><td>Head and neck squamous: CPS ≥1 (greater benefit at CPS ≥20). Cervix: CPS ≥1</td><td>Check current label and region.</td></tr>
+<tr class="g"><td colspan="4">Colorectum, endometrium and other MMR-tested tumours</td></tr>
+<tr><td>MMR (MLH1, PMS2, MSH2, MSH6)</td><td>Nuclear staining in tumour cells vs internal controls</td><td>Deficient: complete loss of nuclear staining in tumour with intact staining in stroma or lymphocytes. Proficient: nuclear staining retained</td><td>No % cut-off. Weak, patchy or subclonal staining should be repeated or confirmed by MSI testing.</td></tr>
+<tr><td>HER2 (colorectal)</td><td>Membranous staining</td><td>Positive in trial criteria: 3+ in &gt;50% of cells, or 2+ with ISH amplification</td><td>Trial-derived criteria. Confirm with your assay guideline.</td></tr>
+<tr class="g"><td colspan="4">Gynaecological</td></tr>
+<tr><td>p53 (endometrium, ovary)</td><td>Nuclear staining pattern</td><td>Abnormal (mutant-type): strong nuclear in ≥80% of tumour cells, complete absence with positive internal control, or cytoplasmic. Otherwise wild-type</td><td>Pattern-based, not a simple percent. Interpretation depends on site and context.</td></tr>
+<tr class="g"><td colspan="4">Neuroendocrine tumours</td></tr>
+<tr><td>Ki-67 (GEP-NET)</td><td>% tumour nuclei in hotspot, ≥500 cells</td><td>G1: &lt;3%; G2: 3–20%; G3: &gt;20%</td><td>WHO grading uses Ki-67 with mitotic count. Separate NET G3 from NEC on morphology.</td></tr>
+<tr class="g"><td colspan="4">Lymphoma</td></tr>
+<tr><td>MYC / BCL2 (DLBCL)</td><td>% tumour cells (MYC nuclear, BCL2 cytoplasmic)</td><td>Double expressor: MYC ≥40% and BCL2 ≥50%</td><td>Distinct from double-hit lymphoma, which needs FISH.</td></tr>
+</table></div>
+<p class="note">Compiled from guideline, trial and assay-label sources. Guidelines and approvals change. Percentages from the grid are estimates, so do not apply these cut-offs to them directly. Confirm against the current guideline and your laboratory's validated method.</p>
+</details>
+
+<p class="note">Percent positive = positive ÷ (positive + negative) × 100, for squares and for nuclei. Unmarked squares are not counted. This is an aid, not a validated measurement.</p>
+</main>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var cv=$("cv"),ctx=cv.getContext("2d"),img=null,cols=30,cs=0,rows=0,st=[],dots=[],tool=1,mode="sq",down=false,log=[];
+var COL={1:"rgba(190,90,20,.5)",2:"rgba(40,90,220,.45)",3:"rgba(20,20,20,.7)"};
+var tb=document.querySelectorAll(".tools button");
+var LAB={sq:["Positive IHC","Negative IHC","Exclude","Erase"],nuc:["Positive nucleus","Negative nucleus","","Remove"]};
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function pc(p,n){return p+n?p/(p+n)*100:null}
+function f(v){return v===null?"–":v.toFixed(1)+"%"}
+function sqs(){var p=0,n=0,x=0;st.forEach(function(s){if(s===1)p++;else if(s===2)n++;else if(s===3)x++});return{p:p,n:n,x:x,u:st.length-p-n-x}}
+function nus(){var p=0,n=0;dots.forEach(function(d){if(d.t===1)p++;else n++});return{p:p,n:n}}
+function info(){
+  var a=sqs(),b=nus(),va=pc(a.p,a.n),vb=pc(b.p,b.n);
+  $("sp").textContent=f(va);$("sf").style.width=(va||0)+"%";
+  $("np").textContent=f(vb);$("nf").style.width=(vb||0)+"%";
+  $("sd").innerHTML="<dt>Positive</dt><dd>"+a.p+"</dd><dt>Negative</dt><dd>"+a.n+"</dd><dt>Excluded</dt><dd>"+a.x+"</dd><dt>Unmarked</dt><dd>"+a.u+"</dd>";
+  $("nd").innerHTML="<dt>Positive</dt><dd>"+b.p+"</dd><dt>Negative</dt><dd>"+b.n+"</dd><dt>Total counted</dt><dd>"+(b.p+b.n)+"</dd>";
+  $("diff").textContent=(va!==null&&vb!==null)?"Difference (nuclei − squares): "+(vb-va>=0?"+":"")+(vb-va).toFixed(1)+" percentage points":"";
+}
+function render(){
+  if(!img)return;
+  ctx.drawImage(img,0,0,cv.width,cv.height);
+  for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){var s=st[r*cols+c];if(s){ctx.fillStyle=COL[s];ctx.fillRect(c*cs,r*cs,cs,cs)}}
+  if($("showgrid").checked){
+    ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=Math.max(1,cv.width/800);ctx.beginPath();
+    for(var i=0;i<=cols;i++){ctx.moveTo(i*cs,0);ctx.lineTo(i*cs,rows*cs)}
+    for(var j=0;j<=rows;j++){ctx.moveTo(0,j*cs);ctx.lineTo(cols*cs,j*cs)}
+    ctx.stroke();
+  }
+  var rad=Math.max(4,cv.width/220);
+  dots.forEach(function(d){
+    ctx.beginPath();ctx.arc(d.x,d.y,rad,0,6.2832);
+    ctx.fillStyle=d.t===1?"rgba(200,80,10,.95)":"rgba(40,90,230,.95)";ctx.fill();
+    ctx.lineWidth=Math.max(1,rad/3);ctx.strokeStyle="#fff";ctx.stroke();
+  });
+  info();
+}
+function layout(){
+  if(!img)return;
+  cols=Math.min(80,Math.max(4,parseInt($("cols").value,10)||30));
+  var w=Math.min(img.naturalWidth,1400);
+  cv.width=w;cv.height=Math.round(w*img.naturalHeight/img.naturalWidth);
+  cs=cv.width/cols;rows=Math.floor(cv.height/cs);
+  st=new Array(cols*rows).fill(0);dots=[];
+  cv.style.display="block";render();
+}
+function pos(e){var b=cv.getBoundingClientRect();return{x:(e.clientX-b.left)*cv.width/b.width,y:(e.clientY-b.top)*cv.height/b.height}}
+function act(e,first){
+  var p=pos(e);
+  if(mode==="sq"){
+    var c=Math.floor(p.x/cs),r=Math.floor(p.y/cs);
+    if(c<0||c>=cols||r<0||r>=rows)return;
+    var k=r*cols+c;if(st[k]!==tool){st[k]=tool;render()}
+  }else if(first){
+    if(tool===1||tool===2){dots.push({x:p.x,y:p.y,t:tool});render()}
+    else if(tool===0){
+      var lim=Math.max(4,cv.width/220)*2.5,bi=-1,bd=lim*lim;
+      dots.forEach(function(d,i){var q=(d.x-p.x)*(d.x-p.x)+(d.y-p.y)*(d.y-p.y);if(q<bd){bd=q;bi=i}});
+      if(bi>=0){dots.splice(bi,1);render()}
+    }
+  }
+}
+cv.addEventListener("pointerdown",function(e){down=true;cv.setPointerCapture(e.pointerId);act(e,true)});
+cv.addEventListener("pointermove",function(e){if(down)act(e,false)});
+cv.addEventListener("pointerup",function(){down=false});
+cv.addEventListener("pointercancel",function(){down=false});
+function press(){Array.prototype.forEach.call(tb,function(o){o.setAttribute("aria-pressed",parseInt(o.getAttribute("data-t"),10)===tool?"true":"false")})}
+function setMode(m){
+  mode=m;$("m1").setAttribute("aria-pressed",m==="sq");$("m2").setAttribute("aria-pressed",m==="nuc");
+  var L=LAB[m];Array.prototype.forEach.call(tb,function(b){var t=parseInt(b.getAttribute("data-t"),10);b.textContent=L[t===0?3:t-1];b.style.display=(m==="nuc"&&t===3)?"none":""});
+  if(m==="nuc"&&tool===3)tool=1;press();
+  $("showgrid").checked=(m==="sq");render();
+}
+$("m1").addEventListener("click",function(){setMode("sq")});
+$("m2").addEventListener("click",function(){setMode("nuc")});
+Array.prototype.forEach.call(tb,function(b){b.addEventListener("click",function(){tool=parseInt(b.getAttribute("data-t"),10);press()})});
+$("showgrid").addEventListener("change",render);
+$("img").addEventListener("change",function(e){
+  var fl=e.target.files[0];if(!fl)return;
+  var u=URL.createObjectURL(fl),im=new Image();
+  im.onload=function(){img=im;layout();URL.revokeObjectURL(u);$("gmsg").textContent=""};
+  im.onerror=function(){$("gmsg").textContent="That file could not be read as an image. Use JPG or PNG."};
+  im.src=u;
+});
+$("cols").addEventListener("change",function(){if(img){if(dots.length&&!confirm("Changing the grid clears all marks, including nuclei. Continue?")){$("cols").value=cols;return}layout()}});
+$("clrm").addEventListener("click",function(){st=st.map(function(){return 0});dots=[];render()});
+$("undo").addEventListener("click",function(){dots.pop();render()});
+function logRender(){
+  var h="",T={sp:0,sn:0,np:0,nn:0};
+  log.forEach(function(r){
+    T.sp+=r.sp;T.sn+=r.sn;T.np+=r.np;T.nn+=r.nn;
+    h+="<tr><td>"+esc(r.l)+"</td><td>"+r.sp+"</td><td>"+r.sn+"</td><td>"+f(pc(r.sp,r.sn))+"</td><td>"+r.np+"</td><td>"+r.nn+"</td><td>"+f(pc(r.np,r.nn))+"</td></tr>";
+  });
+  if(log.length)h+="<tr><td><strong>Total ("+log.length+")</strong></td><td>"+T.sp+"</td><td>"+T.sn+"</td><td><strong>"+f(pc(T.sp,T.sn))+"</strong></td><td>"+T.np+"</td><td>"+T.nn+"</td><td><strong>"+f(pc(T.np,T.nn))+"</strong></td></tr>";
+  else h='<tr><td colspan="7" style="color:var(--mute)">No fields added yet.</td></tr>';
+  $("lb").innerHTML=h;
+}
+$("add").addEventListener("click",function(){
+  if(!img){$("gmsg").textContent="Upload an image first.";return}
+  var a=sqs(),b=nus();
+  if(a.p+a.n+b.p+b.n===0){$("gmsg").textContent="Mark at least one positive or negative square or nucleus first.";return}
+  log.push({l:$("lab").value.trim()||"Field "+(log.length+1),sp:a.p,sn:a.n,np:b.p,nn:b.n});
+  $("lab").value="";$("gmsg").textContent="Field "+log.length+" added to the log.";logRender();
+});
+$("clrl").addEventListener("click",function(){log=[];$("ta").style.display="none";$("gmsg").textContent="Log cleared.";logRender()});
+$("copy").addEventListener("click",function(){
+  if(!log.length){$("gmsg").textContent="The log is empty.";return}
+  var t=["Field\tPos squares\tNeg squares\t% positive (squares)\tPos nuclei\tNeg nuclei\t% positive (nuclei)"];
+  log.forEach(function(r){var a=pc(r.sp,r.sn),b=pc(r.np,r.nn);t.push([r.l,r.sp,r.sn,a===null?"":a.toFixed(1),r.np,r.nn,b===null?"":b.toFixed(1)].join("\t"))});
+  var s=t.join("\n"),ta=$("ta");ta.value=s;ta.style.display="block";ta.focus();ta.select();
+  var ok=function(){$("gmsg").textContent="Copied. Paste into a spreadsheet."};
+  var no=function(){$("gmsg").textContent="Select the text below and copy it manually."};
+  try{navigator.clipboard.writeText(s).then(ok,no)}catch(x){no()}
+});
+setMode("sq");
+})();
+</script>
+</body>
+</html>
